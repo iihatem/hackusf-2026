@@ -1,0 +1,22 @@
+# Environment files
+.env
+.env.*
+
+# Markdown docs
+*.md
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Node
+node_modules/
+
+# Build output
+frontend/build/
+
+# Misc
+.specstory/
+*.log
