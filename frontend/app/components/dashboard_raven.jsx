@@ -499,78 +499,93 @@ export default function MalwareScopeDashboard() {
           const statusRes = await fetch(`${API_BASE}/status/${job_id}?after=${eventCursor.current}`);
           const status = await statusRes.json();
 
-          // Process real pipeline events into the log panel
+          // Drive agent statuses from real pipeline events
           if (status.events && status.events.length > 0) {
             for (const evt of status.events) {
-              if (evt.type === "triage_done") {
+              if (evt.type === "triage_start") {
+                setAgent("static", "running");
+                setCurrentStep(2);
+                addLog("static", "Triage started — hashing, AST, structure scan.");
+              } else if (evt.type === "triage_done") {
+                setAgent("static", "complete");
+                setCurrentStep(3);
+                setTools(p => p.map((tool, i) => ({
+                  ...tool,
+                  signals: [4, 3, 9, 7, 2, 2, 5, 3][i] || 0,
+                  time: ["0.1s", "0.1s", "0.4s", "0.2s", "0.1s", "0.2s", "0.3s", "0.1s"][i],
+                })));
                 addLog("static", "Triage complete. Hashes, strings, AST extracted.");
+              } else if (evt.type === "investigation_start") {
+                setAgent("deobfuscation", "running");
+                addLog("orchestrator", "Investigation phase started.");
               } else if (evt.type === "tool_call") {
-                addLog("deobfuscation", `${evt.tool}: ${evt.preview}`);
+                const tool = evt.tool || "";
+                if (tool.includes("sandbox")) {
+                  if (phase < 2) { phase = 2; setAgent("deobfuscation", "running"); }
+                  addLog("deobfuscation", `sandbox: ${evt.preview}`);
+                } else if (tool.includes("extract_file")) {
+                  if (phase < 4) {
+                    phase = 4;
+                    setAgent("deobfuscation", "complete");
+                    setAgent("scenario", "complete");
+                    setAgent("parallel", "running");
+                    setAgent("network", "running");
+                    setAgent("filesystem", "running");
+                    setCurrentStep(4);
+                  }
+                  addLog("filesystem", `extract: ${evt.preview}`);
+                } else if (tool.includes("host_analyze")) {
+                  if (phase < 4) {
+                    phase = 4;
+                    setAgent("parallel", "running");
+                    setAgent("registry", "running");
+                    setAgent("intel", "running");
+                    setCurrentStep(4);
+                  }
+                  addLog("intel", `host: ${evt.preview}`);
+                } else {
+                  addLog("deobfuscation", `${tool}: ${evt.preview}`);
+                }
               } else if (evt.type === "tool_result") {
                 addLog("deobfuscation", `[${evt.status}] ${evt.preview}`);
               } else if (evt.type === "text") {
-                addLog("scenario", evt.preview);
+                const preview = evt.preview || "";
+                if (preview.toLowerCase().includes("decrypt") || preview.toLowerCase().includes("aes") || preview.toLowerCase().includes("powershell")) {
+                  if (phase < 3) { phase = 3; setAgent("scenario", "running"); }
+                  addLog("scenario", preview);
+                } else if (preview.toLowerCase().includes("pe ") || preview.toLowerCase().includes(".net") || preview.toLowerCase().includes("decompil")) {
+                  addLog("intel", preview);
+                } else {
+                  addLog("deobfuscation", preview);
+                }
               } else if (evt.type === "thinking") {
                 addLog("critic", evt.preview);
-              } else if (evt.type === "phase_start") {
-                addLog("orchestrator", `Phase ${evt.phase} started`);
               } else if (evt.type === "phase_complete") {
                 addLog("orchestrator", `Phase ${evt.phase} complete — ${evt.turns} turns, $${evt.cost}`);
+                if (evt.phase === 2 || evt.phase === "2") {
+                  setAgent("deobfuscation", "complete");
+                  setAgent("scenario", "complete");
+                  setAgent("parallel", "complete");
+                  ["network","filesystem","registry","intel"].forEach(id => setAgent(id, "complete"));
+                  setAgent("critic", "running");
+                  setCurrentStep(5);
+                }
+                if (evt.phase === 3 || evt.phase === "3") {
+                  setAgent("critic", "complete");
+                  setAgent("reporter", "running");
+                }
+              } else if (evt.type === "phase_start") {
+                if (evt.phase === 3 || evt.phase === "3") {
+                  setAgent("critic", "running");
+                  addLog("orchestrator", "Phase 3: deeper analysis resume.");
+                }
               }
             }
             eventCursor.current = status.event_count;
           }
 
           if (status.status === "running") {
-            const t = status.elapsed || 0;
-
-            if (t > 5 && phase < 1) {
-              phase = 1;
-              setAgent("static", "complete");
-              setCurrentStep(3);
-              setTools(p => p.map((tool, i) => ({
-                ...tool,
-                signals: [4, 3, 9, 7, 2, 2, 5, 3][i] || 0,
-                time: ["0.1s", "0.1s", "0.4s", "0.2s", "0.1s", "0.2s", "0.3s", "0.1s"][i],
-              })));
-            }
-            if (t > 15 && phase < 2) {
-              phase = 2;
-              setAgent("deobfuscation", "running");
-            }
-            if (t > 30 && phase < 3) {
-              phase = 3;
-              setAgent("deobfuscation", "complete");
-              setAgent("scenario", "running");
-            }
-            if (t > 60 && phase < 4) {
-              phase = 4;
-              setAgent("scenario", "complete");
-              setAgent("parallel", "running");
-              setAgent("network", "running");
-              setAgent("filesystem", "running");
-              setAgent("registry", "running");
-              setAgent("intel", "running");
-              setCurrentStep(4);
-            }
-            if (t > 120 && phase < 5) {
-              phase = 5;
-              setAgent("network", "complete");
-              setAgent("filesystem", "complete");
-              setAgent("registry", "complete");
-              setAgent("intel", "complete");
-              setAgent("parallel", "complete");
-            }
-            if (t > 150 && phase < 6) {
-              phase = 6;
-              setAgent("critic", "running");
-              setCurrentStep(5);
-            }
-            if (t > 180 && phase < 7) {
-              phase = 7;
-              setAgent("critic", "complete");
-              setAgent("reporter", "running");
-            }
+            // statuses driven by events above
 
           } else if (status.status === "complete") {
             clearInterval(pollInterval);
