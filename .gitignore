@@ -1,0 +1,46 @@
+# Environment and secrets
+.env
+*.env
+snowflake_chat_integration/.env
+rsa_key.p8
+rsa_key.pub
+
+# Claude
+.claude/
+CLAUDE.md
+workspace/CLAUDE.md
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Logs
+*.log
+profiled_run*.log
+run_final*.log
+test_old.log
+
+# Workspace artifacts (generated at runtime)
+workspace/*.txt
+workspace/*.bin
+workspace/*.json
+workspace/blob_*
+workspace/ilspy_output/
+workspace/decoded_*
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+malware-sandbox/
+
+# Redundant directories (if not cleaned up)
+malwarescope/
+raven_snowflake_integration/
+backend_fallback/
