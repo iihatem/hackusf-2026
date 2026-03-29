@@ -110,15 +110,18 @@ print(f"md5:{hashlib.md5(d).hexdigest()} sha256:{hashlib.sha256(d).hexdigest()} 
     hashes = r.stdout.strip()
     log(G, "HASHES", hashes[:100])
 
-    # Step 1: Find and decode PowerShell from raw sample line 826
+    # Step 1: Find and decode PowerShell from restringer output
     sid, txt = await step(f"""Hashes: {hashes}
 
 Run ONE sandbox python3 script that does ALL of this:
-1. Read line 826 (index 825) from /workspace/raw_sample.js
-2. Use regex to find all runs of [A-Za-z0-9+/=]{{100,}} in that line
-3. For each run: strip all occurrences of 'IMLRHNEGA', base64 decode, try UTF-16LE decode
-4. If the decoded text contains 'FromBase64String', print it and save to /workspace/ps.txt
-5. Print how many runs were checked and which one matched""")
+1. Read /workspace/restringer_output.js
+2. Find variable Bi33ddy on line 1474 (the SECOND Bi33ddy assignment, ~983167 chars starting with '?%*')
+   NOT the first Bi33ddy on line 1210.
+3. Strip ALL noise delimiter chars from it: ? % * ~ $ & ^ # ! and space
+4. The result should be ~26000 alphanumeric chars. Strip 'IMLRHNEGA' from it.
+5. Base64 decode, then UTF-16LE decode
+6. If decoded text contains 'FromBase64String' or 'AES', print it and save to /workspace/ps.txt
+7. Print the length at each stage""")
 
     log(B, "STEP1", f"PowerShell extraction. Got {len(txt)} chars")
 
