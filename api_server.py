@@ -78,8 +78,11 @@ def run_analysis(job_id: str, sample_path: str):
 
     try:
         import subprocess
+        # Find the python executable — prefer .venv, fallback to sys.executable
+        venv_python = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".venv", "bin", "python")
+        python_exe = venv_python if os.path.exists(venv_python) else sys.executable
         result = subprocess.run(
-            [os.path.join(os.path.dirname(os.path.abspath(__file__)), ".venv", "bin", "python"), "fallback_pipeline.py"],
+            [python_exe, "fallback_pipeline.py"],
             capture_output=True, text=True, timeout=600,
             cwd=os.path.dirname(os.path.abspath(__file__)),
             env={**os.environ, "SAMPLE_NAME": sample_path},
@@ -89,7 +92,7 @@ def run_analysis(job_id: str, sample_path: str):
         jobs[job_id]["pipeline_stderr"] = result.stderr[-2000:] if result.stderr else ""
 
         # Read the findings files
-        findings_path = os.path.join(WORKSPACE, "investigation_findings.txt")
+        findings_path = os.path.join(WORKSPACE, "findings.txt")
         deep_path = os.path.join(WORKSPACE, "deep_findings.txt")
 
         findings = ""

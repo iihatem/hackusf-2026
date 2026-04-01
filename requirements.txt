@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-dotenv
+anthropic
+snowflake-connector-python
+cryptography
+pydantic
+pefile
+claude-agent-sdk
